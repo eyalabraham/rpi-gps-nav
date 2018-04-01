@@ -50,21 +50,21 @@ See file descriptions below.
 * For UART serial communication with GPS module using Raspbian built in serial driver
 ### tbd
 ### Project files
-*main.c* Main module
-*test.c* Contains various test routines activated by optional command line switch -t <num>
-*nav.c* Main GPS and man navigation application.
-*util.c* Processing utilities, XML parsing, NMEA sentence parsing and coordinate conversions etc
-*pilcd.c* TFT LCD driver (ST7735 device) including text and graphics functions.
-*vt100lcd.c* VT100-aware prinf functions for LCD
-*libbcm2835.so* BCM2835 GPIO driver from [http://www.airspayce.com/mikem/bcm2835/index.html]
-*mapcoord.py* a Python test program that loads a map image and helped me validate the translation between GPS coordinates and pixels on an image of a map. This program uses OpenCV and a screen capture of a map. Due to the curvature of the earth, the map swaths need to be around 2 to 3 square miles. I did not test where the linearity of the mapping breaks.
-*imgconvert.py* This program takes in a map image in any format that OpenCV understand (screen capture) and its GPS coordinates, and converts the image to an LCD formatter RGB565 raw pixel data. The program updates a maps XML database file with the converted file's map attributes.
-*showrawimg.py* A program I use to validate the conversion done by `imgconvert.py`
-*mapmeta.py* A program I wrote to figure out how to use the XML Python library, which I ended up using in `imgconvert.py` and `showrawimg.py`
-*nmea.py* A parser for NMEA text sentences captured from GPS
-*maproirotate.py* A program I wrote to test the algorithms for extracting a rotated ROI from a larger image. The algorithm is implemented in `nav.c` function `get_map_patch()` 
-*logger2kml.awk* and AWK script that processed my GPS logger data and converts them to a KML file readable by Google Earth. The resulting KML can be used to display the logged paths on Google Earth.
-*startup.sh* A shell script used to auto start the navigation app in Raspberry Pi. Link through `/etc/rc.local`
+- *main.c* Main module
+- *test.c* Contains various test routines activated by optional command line switch -t <num>
+- *nav.c* Main GPS and man navigation application.
+- *util.c* Processing utilities, XML parsing, NMEA sentence parsing and coordinate conversions etc
+- *pilcd.c* TFT LCD driver (ST7735 device) including text and graphics functions.
+- *vt100lcd.c* VT100-aware prinf functions for LCD
+- *libbcm2835.so* BCM2835 GPIO driver from [http://www.airspayce.com/mikem/bcm2835/index.html]
+- *mapcoord.py* a Python test program that loads a map image and helped me validate the translation between GPS coordinates and pixels on an image of a map. This program uses OpenCV and a screen capture of a map. Due to the curvature of the earth, the map swaths need to be around 2 to 3 square miles. I did not test where the linearity of the mapping breaks.
+- *imgconvert.py* This program takes in a map image in any format that OpenCV understand (screen capture) and its GPS coordinates, and converts the image to an LCD formatter RGB565 raw pixel data. The program updates a maps XML database file with the converted file's map attributes.
+- *showrawimg.py* A program I use to validate the conversion done by `imgconvert.py`
+- *mapmeta.py* A program I wrote to figure out how to use the XML Python library, which I ended up using in `imgconvert.py` and `showrawimg.py`
+- *nmea.py* A parser for NMEA text sentences captured from GPS
+- *maproirotate.py* A program I wrote to test the algorithms for extracting a rotated ROI from a larger image. The algorithm is implemented in `nav.c` function `get_map_patch()` 
+- *logger2kml.awk* and AWK script that processed my GPS logger data and converts them to a KML file readable by Google Earth. The resulting KML can be used to display the logged paths on Google Earth.
+- *startup.sh* A shell script used to auto start the navigation app in Raspberry Pi. Link through `/etc/rc.local`
 
 ## Hardware
 ### ASCII art block diagram of the hardware
