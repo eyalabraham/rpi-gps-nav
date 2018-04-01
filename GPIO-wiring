@@ -1,0 +1,41 @@
+https://elinux.org/RPi_Low-level_peripherals#General_Purpose_Input.2FOutput_.28GPIO.29
+
+RasPi P1 header     SainSmart 1.8" TFT  Wire        Logic Ana.
+----------------    ------------------- --------    -----------
+SCLK    23          SCL	                BLUE        GREEN
+MOSI    19          SDA	                PURPLE      RED
+CE0     24          CS	                GRAY        BLUE
+GPIO-17 11 Out      RS/DC               BLACK       WHITE
+GPIO-22 15 Out      RES	                WHITE       YELLOW
+
+5V      2           VCC	                BROWN
+Ground  9           GND                 BLACK       BLACK
+
+RasPi P1 header     GPS shield          Wire
+----------------    ------------------- --------
+RxD0    10          J4-2                BLUE
+
+3.3v    1           J5-2                RED
+GND     9           J5-4                BLACK
+
+RasPi P1 header     Push buttons
+----------------    -------------------
+GPIO-18 12 In       Down
+GPIO-2  3  In       Right
+GPIO-3  5  In       Left
+GPIO-4  7  In       Select
+GPIO-27 13 In       Up
+
+Setting up library and Python bindings for bcm2835 GPIO
+----------------------------------------------------------
+1.  Download bcm2835-1.55.tar.gz from: http://www.airspayce.com/mikem/bcm2835/
+    Build and install according to "Installation"
+2.  Follow instructions on: https://pypi.python.org/pypi/PyBCM2835/0.1.0 for a share library
+    cd bcm2835-1.22/src 
+    make libbcm2835.a 
+    gcc -shared bcm2835.o -o libbcm2835.so 
+    sudo cp libbcm2835.so /usr/local/lib/ 
+    sudo cp bcm2835.h /usr/local/include/
+3.  Install Python binding 'pip install PyBCM2835'
+4.  In Python 'import PyBCM2835 as gpio'
+

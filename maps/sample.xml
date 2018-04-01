@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- This XML file lists a collection of maps that are
+     available to the GPS device. Each map entry in the list
+     contains the map file's meta data (the map images are raw RGB data!)
+     The file should be sames as 'maps.xml' for use by the navigation app
+     and stored in the USB drive together with the raw map image files -->
+<maps>
+    <!-- One or more map objects describing the area -->
+    <map>
+        <file>map1.raw</file>
+        <!-- Height and width of map in pixels -->
+        <height>800</height>
+        <width>1032</width>
+        <!-- Latitude and longitude of map top-right and bottom-left corners -->
+        <top_left latitude="+21.000001" longitude="+22.000001" />
+        <bottom_right latitude="+23.000001" longitude="+24.000001" />
+    </map>
+    <map>
+        <file>map2.raw</file>
+        <height>480</height>
+        <width>640</width>
+        <top_left latitude="+31.000001" longitude="+32.000001" />
+        <bottom_right latitude="+33.000001" longitude="+34.000001" />
+    </map>
+</maps>
