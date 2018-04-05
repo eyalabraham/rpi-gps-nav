@@ -109,10 +109,12 @@ as well as Adafruit raw 1.8" TFT display
    Static functions
 ----------------------------------------- */
 static void wait(uint16_t);
-static void lcdWriteCommand(uint8_t);
-static void lcdWriteData(uint8_t);
-static void lcdCommandList(const uint8_t*);
+static void lcd_write_command(uint8_t);
+static void lcd_write_data(uint8_t);
+static void lcd_command_list(const uint8_t*);
 static void update_row_column_addr(void);
+static void lcd_push_color(uint8_t*, uint16_t);
+static void lcd_set_addr_window(uint8_t, uint8_t, uint8_t, uint8_t);
 
 /* -----------------------------------------
    globals
@@ -125,7 +127,7 @@ static int      rotation;
  * originally from glcdfont.c from Adafruit project
  */
 static const uint8_t Font[] = {
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // ' ' 0
+  0xf0, 0x7c, 0x1f, 0x1f, 0x7c, 0xf0, // ' ' 0   (arrow icon)
   0x3E, 0x5B, 0x4F, 0x5B, 0x3E, 0x00, // ' '
   0x3E, 0x6B, 0x4F, 0x6B, 0x3E, 0x00, // ' '
   0x1C, 0x3E, 0x7C, 0x3E, 0x1C, 0x00, // ' '
@@ -380,12 +382,12 @@ static const uint8_t Font[] = {
   0x00, 0x1F, 0x01, 0x01, 0x1E, 0x00, // ' '
   0x00, 0x19, 0x1D, 0x17, 0x12, 0x00, // ' '
   0x00, 0x3C, 0x3C, 0x3C, 0x3C, 0x00, // ' '
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // ' '
+  0x06, 0x7e, 0x67, 0x67, 0x7e, 0x06, // ' '     (small house icon)
 };
 
-// rather than lcdWriteCommand() and lcdWriteData() calls, screen
+// rather than lcd_write_command() and lcd_write_data() calls, screen
 // initialization commands and arguments are organized in a table.
-// table is read, parsed and issues by lcdCommandList()
+// table is read, parsed and issues by lcd_command_list()
 static const uint8_t
 initSeq[] =
     {                                       // consolidated initialization sequence
@@ -465,12 +467,12 @@ static void wait(uint16_t miliSec)
 }
 
 /*------------------------------------------------
- * lcdWriteCommand()
+ * lcd_write_command()
  *
  *  write a command byte to the ST7735 LCD
  *
  */
-static void lcdWriteCommand(uint8_t byte)
+static void lcd_write_command(uint8_t byte)
 {
     // select CMD mode and write byte
     bcm2835_gpio_write(LCD_DATA_CMD, LOW);
@@ -479,12 +481,12 @@ static void lcdWriteCommand(uint8_t byte)
 }
 
 /*------------------------------------------------
- * lcdWriteData()
+ * lcd_write_data()
  *
  *  write a data byte to the ST7735 LCD
  *
  */
-static void lcdWriteData(uint8_t byte)
+static void lcd_write_data(uint8_t byte)
 {
     // select DATA mode and write byte
     bcm2835_gpio_write(LCD_DATA_CMD, HIGH);
@@ -493,13 +495,13 @@ static void lcdWriteData(uint8_t byte)
 }
 
 /*------------------------------------------------
- * lcdCommandList()
+ * lcd_command_list()
  *
  *  reads and issues a series of LCD commands groupd
  *  inside the initialized data tables
  *
  */
-static void lcdCommandList(const uint8_t *addr)
+static void lcd_command_list(const uint8_t *addr)
 {
     int     numCommands, numArgs;
     int     ms;
@@ -507,13 +509,13 @@ static void lcdCommandList(const uint8_t *addr)
     numCommands = *(addr++);                    // Number of commands to follow
     while ( numCommands-- )                     // For each command...
     {
-        lcdWriteCommand(*(addr++));             // Read, issue command
+        lcd_write_command(*(addr++));           // Read, issue command
         numArgs  = *(addr++);                   // Number of args to follow
         ms       = numArgs & DELAY;             // If hibit set, delay follows args
         numArgs &= ~DELAY;                      // Mask out delay bit
         while ( numArgs-- )                     // For each argument...
         {
-            lcdWriteData(*(addr++));            // Read, issue argument
+            lcd_write_data(*(addr++));          // Read, issue argument
         }
 
         if ( ms )
@@ -545,6 +547,72 @@ static void update_row_column_addr(void)
 }
 
 /*------------------------------------------------
+ * lcd_push_color()
+ *
+ *  send color pixel to LCD or an allocated frame buffer
+ *  must run after lcd_set_addr_window()
+ *
+ * param:  frameBuff  pointer to allocated frame buffer, if NULL the function writes direct to screen
+ *         color      16-bit color
+ * return: none
+ *
+ */
+static void lcd_push_color(uint8_t* frameBuff, uint16_t color)
+{
+    int     buff_indx;
+
+    // if a valid buffer address is passed, then write to the buffer
+    if ( frameBuff )
+    {
+        buff_indx = 2*(x_loc + y_loc*_width);
+        frameBuff[buff_indx] = (uint8_t) (color >> 8);
+        frameBuff[buff_indx+1] = (uint8_t) color;
+    }
+
+    // otherwise write pixel direct to LCD screen
+    else
+    {
+        lcd_write_data((uint8_t) (color >> 8));
+        lcd_write_data((uint8_t) color);
+    }
+
+    // update row and column address variable
+    update_row_column_addr();
+}
+
+/*------------------------------------------------
+ * lcd_set_addr_window()
+ *
+ *  set LCD window size in pixels from top left to bottom right
+ *  and setup for write to LCD RAM frame buffer
+ *  any subsequent write commands will go to RAN and be frawn on the display
+ *
+ */
+static void lcd_set_addr_window(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1)
+{
+    x_start = x0;
+    x_end   = x1;
+    y_start = y0;
+    y_end   = y1;
+    x_loc   = x_start;
+    y_loc   = y_start;
+
+    lcd_write_command(ST7735_CASET);  // Column addr set
+    lcd_write_data(0x00);
+    lcd_write_data(x0);               // XSTART
+    lcd_write_data(0x00);
+    lcd_write_data(x1);               // XEND
+
+    lcd_write_command(ST7735_RASET);  // Row addr set
+    lcd_write_data(0x00);
+    lcd_write_data(y0);               // YSTART
+    lcd_write_data(0x00);
+    lcd_write_data(y1);               // YEND
+
+    lcd_write_command(ST7735_RAMWR);  // write to RAM
+}
+
+/*------------------------------------------------
  * lcdInit()
  *
  *  initialization of LCD screen
@@ -562,10 +630,10 @@ void lcdInit(void)
     _height  = 0;
     rotation = 0;
 
-    bcm2835_gpio_fsel(LCD_DATA_CMD, HIGH);        // setup CMD/DATA GPIO line
+    bcm2835_gpio_fsel(LCD_DATA_CMD, HIGH);      // setup CMD/DATA GPIO line
     bcm2835_gpio_write(LCD_DATA_CMD, HIGH);
     
-    lcdCommandList(initSeq);                    // initialization commands to the display
+    lcd_command_list(initSeq);                  // initialization commands to the display
     lcdSetRotation(ROTATE_0);                   // set display rotation and size defaults
 }
 
@@ -577,7 +645,7 @@ void lcdInit(void)
  */
 void lcdOn(void)
 {
-    lcdWriteCommand(ST7735_DISPON);
+    lcd_write_command(ST7735_DISPON);
     wait(100);
 }
 
@@ -589,7 +657,7 @@ void lcdOn(void)
  */
 void lcdOff(void)
 {
-    lcdWriteCommand(ST7735_DISPOFF);
+    lcd_write_command(ST7735_DISPOFF);
     wait(100);
 }
 
@@ -662,8 +730,8 @@ void lcdSetRotation(uint8_t mode)
     x_loc    = x_start;
     y_loc    = y_start;
 
-    lcdWriteCommand(ST7735_MADCTL);
-    lcdWriteData(ctrlByte);
+    lcd_write_command(ST7735_MADCTL);
+    lcd_write_data(ctrlByte);
 }
 
 /*------------------------------------------------
@@ -674,7 +742,7 @@ void lcdSetRotation(uint8_t mode)
  */
 void lcdInvertDisplay(int i)
 {
-    lcdWriteCommand(i ? ST7735_INVON : ST7735_INVOFF);
+    lcd_write_command(i ? ST7735_INVON : ST7735_INVOFF);
 }
 
 /*------------------------------------------------
@@ -686,124 +754,6 @@ void lcdInvertDisplay(int i)
 uint16_t lcdColor565(uint8_t r, uint8_t g, uint8_t b)
 {
     return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
-}
-
-/*------------------------------------------------
- * lcdSetAddrWindow()
- *
- *  set LCD window size in pixels from top left to bottom right
- *  and setup for write to LCD RAM frame buffer
- *  any subsequent write commands will go to RAN and be frawn on the display
- *
- */
-void lcdSetAddrWindow(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1)
-{
-    x_start = x0;
-    x_end   = x1;
-    y_start = y0;
-    y_end   = y1;
-    x_loc   = x_start;
-    y_loc   = y_start;
-
-    lcdWriteCommand(ST7735_CASET);  // Column addr set
-    lcdWriteData(0x00);
-    lcdWriteData(x0);               // XSTART
-    lcdWriteData(0x00);
-    lcdWriteData(x1);               // XEND
-
-    lcdWriteCommand(ST7735_RASET);  // Row addr set
-    lcdWriteData(0x00);
-    lcdWriteData(y0);               // YSTART
-    lcdWriteData(0x00);
-    lcdWriteData(y1);               // YEND
-
-    lcdWriteCommand(ST7735_RAMWR);  // write to RAM
-}
-
-/*------------------------------------------------
- * lcdFillScreen()
- *
- *  fill screen with solid color
- *
- */
-void lcdFillScreen(uint16_t color)
-{
-    lcdFillRect(0, 0,  _width, _height, color);
-}
-
-/*------------------------------------------------
- * lcdDrawPixel()
- *
- *  drow a pixes in coordinate (x,y) with color
- *
- */
-void lcdDrawPixel(int x, int y, uint16_t color)
-{
-    if ((x < 0) || (x >= _width) || (y < 0) || (y >= _height))
-        return;
-
-    lcdSetAddrWindow(x,y,x+1,y+1);
-  
-    lcdWriteData((uint8_t) (color >> 8));
-    lcdWriteData((uint8_t) color);
-}
-
-/*------------------------------------------------
- * lcdDrawFastVLine()
- *
- *  draw vertical line from x,y length h and color
- *
- */
-void lcdDrawFastVLine(int x, int y, int h, uint16_t color)
-{
-    uint8_t     hi, lo;
-
-    // Rudimentary clipping
-    if ((x >= _width) || (y >= _height))
-        return;
-
-    if ((y+h-1) >= _height)
-        h = _height-y;
-
-    lcdSetAddrWindow(x, y, x, y+h-1);
-
-    hi = (uint8_t) (color >> 8);
-    lo = (uint8_t) color;
-    
-    while (h--)
-    {
-        lcdWriteData(hi);
-        lcdWriteData(lo);
-    }
-}
-
-/*------------------------------------------------
- * lcdDrawFastHLine()
- *
- *  draw horizontal line from x,y with length w and color
- *
- */
-void lcdDrawFastHLine(int x, int y, int w, uint16_t color)
-{
-    uint8_t     hi, lo;
-
-    // Rudimentary clipping
-    if ((x >= _width) || (y >= _height))
-        return;
-
-    if ((x+w-1) >= _width)
-        w = _width-x;
-
-    lcdSetAddrWindow(x, y, x+w-1, y);
-
-    hi = (uint8_t) (color >> 8);
-    lo = (uint8_t) color;
-
-    while (w--)
-    {
-        lcdWriteData(hi);
-        lcdWriteData(lo);
-    }
 }
 
 /*------------------------------------------------
@@ -826,7 +776,7 @@ void lcdFillRect(int x, int y, int w, int h, uint16_t color)
     if ((y + h - 1) >= _height)
         h = _height - y;
 
-    lcdSetAddrWindow(x, y, x+w-1, y+h-1);
+    lcd_set_addr_window(x, y, x+w-1, y+h-1);
 
     hi = (uint8_t) (color >> 8);
     lo = (uint8_t) color;
@@ -835,8 +785,8 @@ void lcdFillRect(int x, int y, int w, int h, uint16_t color)
     {
         for (x=w; x>0; x--)
         {
-            lcdWriteData(hi);
-            lcdWriteData(lo);
+            lcd_write_data(hi);
+            lcd_write_data(lo);
         }
     }
 }
@@ -855,8 +805,8 @@ uint8_t* lcdFrameBufferInit(uint16_t color)
 
     size = _width * _height * sizeof(uint16_t);         // calculate buffer size
 
-    if ( (buffer = (uint8_t*) malloc(size)) == 0 )      // allocate memory and abort if cannot
-        return 0;
+    if ( (buffer = (uint8_t*) malloc(size)) == NULL )   // allocate memory and abort if cannot
+        return NULL;
 
     for ( i = 0; i < size; i += 2)                      // initialize buffer with color
     {
@@ -889,11 +839,11 @@ void lcdFrameBufferPush(uint8_t* frameBufferPointer)
     uint16_t  size;
 
     size = _width * _height * sizeof(uint16_t);             // calculate frame buffer size
-    lcdSetAddrWindow(0, 0, _width-1, _height-1);            // prepare display area
+    lcd_set_addr_window(0, 0, _width-1, _height-1);            // prepare display area
 
     // select DATA mode and write byte
     bcm2835_gpio_write(LCD_DATA_CMD, HIGH);
-    bcm2835_spi_writenb(frameBufferPointer, size);
+    bcm2835_spi_writenb((char*)frameBufferPointer, size);
 }
 
 /*------------------------------------------------
@@ -928,54 +878,151 @@ void lcdFrameBufferScroll(int pixels, uint16_t color)
 }
 
 /*------------------------------------------------
- * lcdPushColor()
+ * lcdFillScreen()
  *
- *  send color pixel to LCD or an allocated frame buffer
- *  must run after lcdSetAddrWindow()
+ *  Fill screen with solid color
  *
- * param:  frameBuff  pointer to allocated frame buffer, if NULL the function writes direct to screen
- *         color      16-bit color
+ * param:  frameBuff   pointer to allocated frame buffer, if NULL the function writes direct to screen
+ *         color       16-bit color in RGB565 format
  * return: none
- *
  */
-void lcdPushColor(uint8_t* frameBuff, uint16_t color)
+void lcdFillScreen(uint8_t* frameBuff, uint16_t color)
 {
-    int     buff_indx;
+    uint8_t *buffer;
 
-    // if a valid buffer address is passed, then write to the buffer
+    // Fill existing buffer with color
     if ( frameBuff )
     {
-        buff_indx = 2*(x_loc + y_loc*_width);
-        frameBuff[buff_indx] = (uint8_t) (color >> 8);
-        frameBuff[buff_indx+1] = (uint8_t) color;
+        lcdFrameBufferColor(frameBuff, color);
     }
-
-    // otherwise write pixel direct to LCD screen
+    // or use a temporary buffer to push color to the screen
     else
     {
-        lcdWriteData((uint8_t) (color >> 8));
-        lcdWriteData((uint8_t) color);
+        buffer = lcdFrameBufferInit(color);
+        if ( buffer )
+        {
+            lcdFrameBufferPush(buffer);
+            lcdFrameBufferFree(buffer);
+        }
+    }
+}
+
+/*------------------------------------------------
+ * lcdDrawPixel()
+ *
+ *  Draw a pixel in coordinate (x,y) with color
+ *
+ * param:  frameBuff   pointer to allocated frame buffer, if NULL the function writes direct to screen
+ *         x           horizontal position of the top left corner of the character, columns from the left edge
+ *         y           vertical position of the top left corner of the character, rows from the top edge
+ *         color       16-bit color in RGB565 format
+ * return: none
+ */
+void lcdDrawPixel(uint8_t* frameBuff, int x, int y, uint16_t color)
+{
+    if ((x < 0) || (x >= _width) || (y < 0) || (y >= _height))
+        return;
+
+    lcd_set_addr_window(x,y,x+1,y+1);
+
+    lcd_push_color(frameBuff, color);
+}
+
+/*------------------------------------------------
+ * lcdDrawLine()
+ *
+ *  Draw a line from starting point to end point
+ *
+ * param:  frameBuff   pointer to allocated frame buffer, if NULL the function writes direct to screen
+ *         xs, ys      starting point pixel
+ *         xe, ye      end point/pixel
+ *         color       16-bit color in RGB565 format
+ * return: none
+ */
+void lcdDrawLine(uint8_t* frameBuff, int xs, int ys, int xe, int ye, uint16_t color)
+{
+    int     pix, piy;
+
+    int     dx, sx;     // Bresenham's line algorithm variables,
+    int     dy, sy;
+    int     err, e2;
+
+    // Rudimentary clipping
+    if ( xe >= _width )
+        xe = _width;
+
+    if ( xs < 0 )
+        xs = 0;
+
+    if ( ye >= _height )
+        ye = _height;
+
+    if ( ys < 0 )
+        ys = 0;
+
+    // Handle a vertical line
+    if ( xs == xe )
+    {
+        for ( piy = ys; piy <= ye; piy++ )
+            lcdDrawPixel(frameBuff, xs, piy, color);
     }
 
-    // update row and column address variable
-    update_row_column_addr();
+    // Handle a horizontal line
+    else if ( ys == ye )
+    {
+        for ( pix = xs; pix <= xe; pix++ )
+            lcdDrawPixel(frameBuff, pix, ys, color);
+    }
+
+    // Handle a general case line from any start to any end point
+    // using Bresenman algorithm
+    else
+    {
+        // Bresenman algorithm initialization
+        dx = abs(xe-xs);
+        sx = xs<xe ? 1 : -1;
+        dy = abs(ye-ys);
+        sy = ys<ye ? 1 : -1;
+        err = (dx>dy ? dx : -dy)/2;
+        pix = xs;
+        piy = ys;
+
+        // loop until line drawing is done
+        while ( pix != xe || piy != ye )
+        {
+            lcdDrawPixel(frameBuff, pix, piy, color);
+
+            // calculate next pixel coordinates
+            e2 = err;
+            if (e2 > -dx)
+            {
+                err -= dy;
+                pix += sx;
+            }
+            if (e2 <  dy)
+            {
+                err += dx;
+                piy += sy;
+            }
+        }
+    }
 }
 
 /*------------------------------------------------
  * lcdDrawChar()
  *
  * Similar to the function from Adafruit_GFX.c but adapted for this processor.
- * This function uses one call to lcdSetAddrWindow(), which allows it to
+ * This function uses one call to lcd_set_addr_window(), which allows it to
  * run at least twice as fast.
  *
  * param:  frameBuff   pointer to allocated frame buffer, if NULL the function writes direct to screen
  *         x           horizontal position of the top left corner of the character, columns from the left edge
  *         y           vertical position of the top left corner of the character, rows from the top edge
  *         c           character to be printed
- *         textColor   16-bit color of the character
- *         bgColor     16-bit color of the background
+ *         textColor   16-bit color of the character in RGB565 format
+ *         bgColor     16-bit color of the background in RGB565 format
  *         scale       number of pixels per character pixel (e.g. size==2 prints each pixel of font as 2x2 square)
- *         transparent '0' color in the background, '1' no background when writing to frame buffer
+ *         transparent '0' color with background, '1' no background when writing to frame buffer
  * return: none
  *
  */
@@ -991,7 +1038,7 @@ void lcdDrawChar(uint8_t* frameBuff, uint16_t x, uint16_t y, char c, uint16_t te
         return;
     }
 
-    lcdSetAddrWindow(x, y, x+FONT_PIX_WIDE*scale-1, y+FONT_PIX_HIGH*scale-1);
+    lcd_set_addr_window(x, y, x+FONT_PIX_WIDE*scale-1, y+FONT_PIX_HIGH*scale-1);
 
     // print character rows starting at the top row
     // print the columns, starting on the left
@@ -1006,14 +1053,14 @@ void lcdDrawChar(uint8_t* frameBuff, uint16_t x, uint16_t y, char c, uint16_t te
                 {
                     // Bit is set in Font, print pixel(s) in text color
                     if ( Font[(c*FONT_PIX_WIDE+col)] & line )
-                        lcdPushColor(frameBuff, textColor);
+                        lcd_push_color(frameBuff, textColor);
 
                     // Bit is cleared in Font
                     else
                     {
                         // Always paint background on LCD, or if background is not transparent
                         if ( frameBuff == NULL || !transparent )
-                            lcdPushColor(frameBuff, bgColor);
+                            lcd_push_color(frameBuff, bgColor);
 
                         // Pixel is transparent and sent only to buffer
                         // so only advance row/column positions

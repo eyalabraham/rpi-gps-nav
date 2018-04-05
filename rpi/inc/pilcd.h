@@ -71,11 +71,6 @@ uint16_t    lcdColor565(uint8_t, uint8_t, uint8_t);                 // Pass 8-bi
  *  Direct access display functions
  *  TODO change these to direct or frame buffer functions
  */
-void        lcdSetAddrWindow(uint8_t, uint8_t, uint8_t, uint8_t);   // TODO could be static function?
-void        lcdFillScreen(uint16_t);                                // fill screen with a solid color
-void        lcdDrawPixel(int, int, uint16_t);                       // draw a pixel
-void        lcdDrawFastVLine(int, int, int, uint16_t);              // vertical line
-void        lcdDrawFastHLine(int, int, int, uint16_t);              // horizontal line
 void        lcdFillRect(int, int, int, int, uint16_t);              // color filled rectangle
 
 /*------------------------------------------------
@@ -95,7 +90,9 @@ void        lcdFrameBufferScroll(int, uint16_t);                    // scroll fr
  *  (assuming a fixed 160x128 pixel screen)
  *
  */
-void        lcdPushColor(uint8_t*, uint16_t);                       // send color pixel to display
+void        lcdFillScreen(uint8_t*, uint16_t);                      // fill screen with a solid color
+void        lcdDrawPixel(uint8_t*, int, int, uint16_t);             // draw a pixel
+void        lcdDrawLine(uint8_t*, int, int, int, int, uint16_t);    // draw a line
 void        lcdDrawChar(uint8_t*, uint16_t, uint16_t, char, uint16_t, uint16_t, int, int); // write character to LCD or buffer
 
 #endif  /* end __pilcd_h__ */

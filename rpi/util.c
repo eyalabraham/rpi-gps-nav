@@ -779,10 +779,10 @@ void dump_map_list(struct map_t *map_linked_list)
         {
             printf("                file: %s\n", map_ptr->file_name);
             printf("                  pixels: %d x %d\n", map_ptr->width, map_ptr->height);
-            printf("                  top left: %f, %f\n", map_ptr->tl_lat, map_ptr->tl_long);
-            printf("                  bottom right: %f, %f\n", map_ptr->br_lat, map_ptr->br_long);
+            printf("                  top left: %lf, %lf\n", map_ptr->tl_lat, map_ptr->tl_long);
+            printf("                  bottom right: %lf, %lf\n", map_ptr->br_lat, map_ptr->br_long);
         }
     }
     else
-        printf("No maps.\n");
+        printf("                No maps.\n");
 }

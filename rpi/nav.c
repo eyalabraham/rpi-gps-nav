@@ -29,6 +29,8 @@
  *
  */
 
+#define     __FAKE_VALID_FIX__  0               // Use for map position debug
+
 // System font color definition
 #define     SYS_FONT_INV        "\e[30;47m"     // black on white
 #define     SYS_FONT_NORM       "\e[37;40m"     // white on black
@@ -1254,7 +1256,7 @@ static void gps_data(int logger_on)
             }
             else
             {
-                // There are six NMEA messages a every second.
+                // There are six NMEA messages every second.
                 // So if we count 60 invalid messages, we have an invalid fix for at least 10sec
                 // then print the 'invalid fix' warning
                 time_invalid_fix++;
@@ -1334,33 +1336,33 @@ static void gps_map_nav(void)
         {
             valid_fix = nmea_update_pos(nmea_text, &pos);
 
-            // *** Un-comment to fake a valid fix ***
-            //valid_fix = 1;
-            //pos.heading = 0.0;
-            //pos.latitude = 42.281745;
-            //pos.longitude = -71.2208795;
+#if  __FAKE_VALID_FIX__
+            valid_fix = 1;
+            pos.heading = 0.0;
+            pos.latitude = 42.27216935370383;
+            pos.longitude = -71.21417738855098;
+#endif
 
             if ( valid_fix )
             {
                 time_invalid_fix = 0;
 
-                // If a map is already loaded, verify that is is still valid
+                // If a map is already loaded, verify that it is still valid
                 if ( loaded_map &&
                      pos.latitude <= loaded_map->tl_lat && pos.latitude >= loaded_map->br_lat &&
                      pos.longitude >= loaded_map->tl_long && pos.longitude <= loaded_map->br_long )
                 {
                     // Current map is still valid, so load patch into screen buffer
+/*
                     if ( map_image == NULL )
                         map_image = load_map_image(loaded_map);
+*/
                     get_map_patch(&pos, loaded_map, map_image);
                 }
+
                 // Otherwise find a map to load
                 else
                 {
-                    // Invalidate the map image buffer
-                    free(map_image);
-                    map_image = NULL;
-
                     // Scan the linked list for an appropriate map
                     // that contains the current location
                     for ( loaded_map = map_list; loaded_map; loaded_map = loaded_map->next )
@@ -1372,7 +1374,7 @@ static void gps_map_nav(void)
                         }
                     }
 
-                    // Load and render map or output an error notification
+                    // Reload the new map and render a patch or output an error notification
                     if ( loaded_map )
                     {
                         map_image = load_map_image(loaded_map);
@@ -1380,19 +1382,22 @@ static void gps_map_nav(void)
                     }
                     else
                     {
-                        vt100_lcd_printf(frame_buffer.pixel_bytes, 1, "\e[11;0f\e[31;40m** No map for location **%s", SYS_FONT_NORM);
+                        lcdFrameBufferColor(frame_buffer.pixel_bytes, SYS_BG_COLOR);
+                        vt100_lcd_printf(frame_buffer.pixel_bytes, 1, "\e[12;0f\e[31;40m** No map for location **%s", SYS_FONT_NORM);
                     }
                 }
+
+                lcdDrawChar(frame_buffer.pixel_bytes, 78, 60, 0, ST7735_BLUE, ST7735_BLACK, 1, 1);
             }
             else
             {
-                // There are six NMEA messages a every second.
+                // There are six NMEA messages every second.
                 // So if we count 60 invalid messages, we have an invalid fix for at least 10sec
                 // then print the 'invalid fix' warning
                 time_invalid_fix++;
                 if ( time_invalid_fix > 60 )
                 {
-                    vt100_lcd_printf(frame_buffer.pixel_bytes, 1, "\e[10;0f\e[31;40m** Fix not valid **%s", SYS_FONT_NORM);
+                    vt100_lcd_printf(frame_buffer.pixel_bytes, 1, "\e[13;0f\e[31;40m** Fix not valid **%s", SYS_FONT_NORM);
                 }
             }
         }
@@ -1405,6 +1410,10 @@ static void gps_map_nav(void)
 
         lcdFrameBufferPush(frame_buffer.pixel_bytes);
     }
+
+    // Invalidate the map image buffer and exit
+    free(map_image);
+    map_image = NULL;
 }
 
 /********************************************************************
@@ -1440,8 +1449,8 @@ uint16_t *load_map_image(struct map_t *loaded_map)
         fd = open(raw_img_file, O_RDONLY);
         if ( fd == -1 )
         {
-            free(image_buffer);
-            return NULL;
+            free(image_buffer); // Error checking of the image buffer pointer
+            return NULL;        //  will be done in get_map_patch()
         }
 
         // Read the file content into the buffer
@@ -1469,6 +1478,13 @@ static void get_map_patch(struct position_t *pos, struct map_t *map_attrib, uint
     int     roi_center_x, roi_center_y;
     int     roi_index, img_index;
     double  map_res_x, map_res_y;
+
+    // Sanity check
+    if ( image_buffer == NULL )
+    {
+        lcdFrameBufferColor(frame_buffer.pixel_bytes, ST7735_BLACK);
+        vt100_lcd_printf(frame_buffer.pixel_bytes, 1, "\e[8;0f\e[31;40m** Map load error\n   image_buffer == NULL **%s", SYS_FONT_NORM);
+    }
 
     // Initialize variables for calculation
     theta = (int)pos->heading;

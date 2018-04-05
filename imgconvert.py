@@ -8,31 +8,36 @@
 #   color format per pixel.
 #   Generate and XML description for the image file containing
 #   size in pixels and color format
-#   TODO command line arguments
+#   TODO command line arguments instead of globals
 #        imgconvert.py -i <input_image> -o <output_file> -x <xml_meta-data_file> -t <lat>/<long> -b <lat>/<long>
 #
 #   Sample XML format for map file meta data:
 #
+#   <?xml version="1.0" encoding="UTF-8"?>
 #   <!-- This XML file lists a collection of maps that are
 #        available to the GPS device. Each map entry in the list
-#        contains the map file's meta data (the map images are raw RGB data!) -->
+#        contains the map file's meta data (the map images are raw RGB data!)
+#        The file should be saved as 'maps.xml' for use by the navigation app
+#        and stored in the USB drive together with the raw map image files -->
 #   <maps>
 #       <!-- One or more map objects describing the area -->
-#       <map file="map1.raw" format="RGB565">
+#       <map>
+#           <file>map1.raw</file>
 #           <!-- Height and width of map in pixels -->
 #           <height>800</height>
 #           <width>1032</width>
 #           <!-- Latitude and longitude of map top-right and bottom-left corners -->
-#           <top_right latitude="24.000002" longitude="-71.000000" />
-#           <bottom_left latitude="25.000000" longitude="-72.000000" />
+#           <top_left latitude="+21.000001" longitude="+22.000001" />
+#           <bottom_right latitude="+23.000001" longitude="+24.000001" />
 #       </map>
-#       <map file="map2.raw" format="RGB565">
+#       <map>
+#           <file>map2.raw</file>
 #           <height>480</height>
 #           <width>640</width>
-#           <top_right latitude="25.000002" longitude="-73.000000" />
-#           <bottom_left latitude="26.000000" longitude="-74.000000" />
+#           <top_left latitude="+31.000001" longitude="+32.000001" />
+#           <bottom_right latitude="+33.000001" longitude="+34.000001" />
 #       </map>
-#   </maps>
+#   </maps>#
 #
 #   February 18, 2018
 #
@@ -41,6 +46,20 @@
 import cv2
 import numpy as np
 import xml.etree.cElementTree as ET
+
+
+#------------- Globals that should be command line options --------------------
+
+INPUT_IMAGE = './graphics/map.png'         # -i <input_image>
+OUTOUT_IMAGE = 'map.raw'                   # -o <output_file>
+OUTPUT_IMAGE_DIR = './maps/'
+XML_MAP_META_DATA = './maps/maps.xml'      # -x <xml_meta-data_file>
+TOP_LEFT_LAT = '11.000001'                 # -t <lat>/<long> 
+TOP_LEFT_LONG = '-22.000002'
+BOTTOM_RIGHT_LAT = '33.000003'             # -b <lat>/<long>
+BOTTOM_RIGHT_LONG = '-44.000004'
+
+#------------------------------------------------------------------------------
 
 ###############################################################################
 #
@@ -52,7 +71,7 @@ def main():
     #
     # Initializations
     #
-    img = cv2.imread('./graphics/town.png')                         # TODO command line parameter, -i <input_image>
+    img = cv2.imread(INPUT_IMAGE)
 
     map_img_hight = img.shape[0]
     map_img_width = img.shape[1]
@@ -60,38 +79,25 @@ def main():
     print 'Image shape ', img.shape, '[pixels]'
     
     #
-    # Update XML with map's meta data
+    # Update XML with new map's meta data
     #
-    maps_meta_data = ET.ElementTree(file='./maps/maps.xml')         # TODO command line parameter, -x <xml_meta-data_file>
+    maps_meta_data = ET.ElementTree(file=XML_MAP_META_DATA)
     all_maps = maps_meta_data.getroot()
-    
-    map_of_interest = 'output.raw'                                  # TODO command line parameter, -o <output_file>
-    map_to_search = 'map[@file="' + map_of_interest + '"]'          # FIXME this does not work any more, need to change per new XML format
-    my_map = None
-    for my_map in all_maps.iterfind(map_to_search):
-        pass
 
-    if my_map != None:
-        # Clear the map element and reset its attributes
-        my_map.clear()
-        my_map.tag = 'map'
-    else:
-        # Add a new map element meta-data.
-        my_map = ET.SubElement(all_maps, 'map')                     # TODO command line parameter, -o <output_file>
-        
-    ET.SubElement(my_map, 'file').text = 'output.raw'
+    my_map = ET.SubElement(all_maps, 'map')  
+    ET.SubElement(my_map, 'file').text = OUTOUT_IMAGE
     ET.SubElement(my_map, 'height').text = str(map_img_hight)
     ET.SubElement(my_map, 'width').text = str(map_img_width)
-    ET.SubElement(my_map, 'top_left', {'latitude':'+00.000001','longitude':'+00.000001'})       # TODO command line parameter, -t <lat>/<long>
-    ET.SubElement(my_map, 'bottom_right', {'latitude':'+00.000001','longitude':'+00.000001'})   # TODO command line parameter, -b <lat>/<long>
+    ET.SubElement(my_map, 'top_left', {'latitude':TOP_LEFT_LAT,'longitude':TOP_LEFT_LONG})
+    ET.SubElement(my_map, 'bottom_right', {'latitude':BOTTOM_RIGHT_LAT,'longitude':BOTTOM_RIGHT_LONG})
 
-    maps_meta_data.write('./maps/maps.xml')                         # TODO command line parameter, -x <xml_meta-data_file>
+    maps_meta_data.write(XML_MAP_META_DATA)
 
     #
     # Convert the image to RGB565 for LCD
     # and save to raw image file
     #
-    img_file = open('./maps/output.raw', 'wb')                      # TODO command line parameter, -o <output_file>
+    img_file = open(OUTPUT_IMAGE_DIR+OUTOUT_IMAGE, 'wb')
 
     cvt = img.copy()
 

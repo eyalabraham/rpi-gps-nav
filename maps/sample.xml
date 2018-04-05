@@ -3,7 +3,9 @@
      available to the GPS device. Each map entry in the list
      contains the map file's meta data (the map images are raw RGB data!)
      The file should be saved as 'maps.xml' for use by the navigation app
-     and stored in the USB drive together with the raw map image files -->
+     and stored in the USB drive together with the raw map image files.
+     For accurate GPS coordinate use https://www.gps-coordinates.net/
+     Google maps is not accurate !!  -->
 <maps>
     <!-- One or more map objects describing the area -->
     <map>
