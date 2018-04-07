@@ -49,7 +49,13 @@ See file descriptions below.
 ### Drivers
 * For GPIO and SPI using libbmc2835 [http://www.airspayce.com/mikem/bcm2835/] and its Python binding [https://github.com/mubeta06/py-libbcm2835]
 * For UART serial communication with GPS module using Raspbian built in serial driver
-### tbd
+
+### Raspberry Pi setup
+Using Raspberry Pi image `2017-11-29-raspbian-stretch-lite.img` with upgrades installed.
+Added `libxml2` and `libbcm2835` development packages.
+Installed and enabled SSH with public key and password-less logon, to allow `rsync` and `rsh` remote command execution.
+UART is enabled and SPI is disabled in `raspi-config`.
+
 ### Project files and directories
 - *main.c* Main module
 - *test.c* Contains various test routines activated by optional command line switch -t <num>
@@ -64,9 +70,9 @@ See file descriptions below.
 - *mapmeta.py* A program I wrote to figure out how to use the XML Python library, which I ended up using in `imgconvert.py` and `showrawimg.py`
 - *nmea.py* A parser for NMEA text sentences captured from GPS
 - *maproirotate.py* A program I wrote to test the algorithms for extracting a rotated ROI from a larger image. The algorithm is implemented in `nav.c` function `get_map_patch()` 
-- *logger2kml.awk* and AWK script that processed my GPS logger data and converts them to a KML file readable by Google Earth. The resulting KML can be used to display the logged paths on Google Earth.
+- *logger2kml.awk* AWK script that processes my GPS logger data and converts them to a KML file readable by Google Earth. The resulting KML can be used to display the logged paths on Google Earth.
 - *startup.sh* A shell script used to auto start the navigation app in Raspberry Pi. Link through `/etc/rc.local`
-- *maps/* This directory holds the maps.xml description file that carries the necessary meta-data for the maps. The maps will also be stored here as raw RGP files converted by the `imgconvert.py` script from any graphic format into the necessary raw RGB. this directory should be copied onto a USB drive to be mounted on the Raspberry Pi file system.
+- *maps/*  This directory holds the maps.xml description file that carries the necessary meta-data for the maps. The maps will also be stored here as raw RGP files converted by the `imgconvert.py` script from any graphic format into the necessary raw RGB. this directory should be copied onto a USB drive to be mounted on the Raspberry Pi file system.
 
 ## Hardware
 ### ASCII art block diagram of the hardware
@@ -99,7 +105,7 @@ The **GPIO-wiring** file lists the connections between the Raspberry Pi, the GPS
                         SPI Bus
                         
 Not shown
-* Push buttons for multi-function control (up/down/lect/right/select) connected to Raspberry Pi's GPIO input lines.
+* Push buttons for multi-function control (up/down/left/right/select) connected to Raspberry Pi's GPIO input lines.
 ### Resources
 * GPS module [https://www.itead.cc/wiki/Arduino_GPS_shield]
 * Interpret NMEA sentences [http://www.gpsinformation.org/dale/nmea.htm] and [http://www.earthpoint.us/Convert.aspx]
